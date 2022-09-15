@@ -14,6 +14,7 @@
 // Everything declared in this header is only required when WebRTC is
 // build with H264 support, please do not move anything out of the
 // #ifdef unless needed and tested.
+#define WEBRTC_USE_H264 1
 #ifdef WEBRTC_USE_H264
 
 #if defined(WEBRTC_WIN) && !defined(__clang__)

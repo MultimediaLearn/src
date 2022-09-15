@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+#define WEBRTC_USE_H264 1
 #include "api/video_codecs/h264_profile_level_id.h"
 #include "api/video_codecs/scalability_mode.h"
 #include "media/base/codec.h"

@@ -10,7 +10,7 @@
 
 #ifndef API_VIDEO_CODECS_VIDEO_ENCODER_FACTORY_H_
 #define API_VIDEO_CODECS_VIDEO_ENCODER_FACTORY_H_
-
+#define WEBRTC_USE_H264 1
 #include <memory>
 #include <string>
 #include <vector>

@@ -38,6 +38,7 @@
 #include "test/testsupport/frame_reader.h"
 #include "test/video_codec_settings.h"
 
+#define WEBRTC_USE_H264 1
 #if defined(WEBRTC_USE_H264)
 #include "modules/video_coding/codecs/h264/include/h264.h"
 #endif
