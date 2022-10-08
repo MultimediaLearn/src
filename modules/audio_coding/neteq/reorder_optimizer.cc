@@ -32,6 +32,7 @@ ReorderOptimizer::ReorderOptimizer(int forget_factor,
 void ReorderOptimizer::Update(int relative_delay_ms,
                               bool reordered,
                               int base_delay_ms) {
+  // 乱序包按照乱序时间统计，新包统计到位置 0
   const int index = reordered ? relative_delay_ms / kBucketSizeMs : 0;
   if (index < histogram_.NumBuckets()) {
     // Maximum delay to register is 2000 ms.
@@ -58,6 +59,7 @@ int ReorderOptimizer::MinimizeCostFunction(int base_delay_ms) const {
     int64_t delay_ms =
         static_cast<int64_t>(std::max(0, i * kBucketSizeMs - base_delay_ms))
         << 30;
+    // cost = C * delay + P(loss | level)
     int64_t cost = delay_ms + 100 * ms_per_loss_percent_ * loss_probability;
 
     if (cost < min_cost) {

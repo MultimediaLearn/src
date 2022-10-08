@@ -506,6 +506,7 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
 
   PacketList packet_list;
   // Insert packet in a packet list.
+  // lambda 表达式构建packet
   packet_list.push_back([&rtp_header, &payload, &receive_time] {
     // Convert to Packet.
     Packet packet;
@@ -531,6 +532,7 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
     timestamp_scaler_->ToInternal(&packet_list);
   }
 
+  // 收到的包可能消失？RED拆包
   // Store these for later use, since the first packet may very well disappear
   // before we need these values.
   uint32_t main_timestamp = packet_list.front().timestamp;
@@ -561,6 +563,7 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
     nack_->UpdateLastReceivedPacket(main_sequence_number, main_timestamp);
   }
 
+  // 冗余编码
   // Check for RED payload type, and separate payloads into several packets.
   if (decoder_database_->IsRed(rtp_header.payloadType)) {
     if (!red_payload_splitter_->SplitRed(&packet_list)) {
@@ -674,13 +677,17 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
   // Calculate the number of primary (non-FEC/RED) packets.
   const size_t number_of_primary_packets = std::count_if(
       parsed_packet_list.begin(), parsed_packet_list.end(),
+      // level 0 是最高优先级
       [](const Packet& in) { return in.priority.codec_level == 0; });
   if (number_of_primary_packets < parsed_packet_list.size()) {
+    // 统计FEC包
     stats_->SecondaryPacketsReceived(parsed_packet_list.size() -
                                      number_of_primary_packets);
   }
 
+  /// 真正将数据报插入缓存队列
   // Insert packets in buffer.
+  // 计算target_level，ms 为单位
   const int target_level_ms = controller_->TargetLevelMs();
   const int ret = packet_buffer_->InsertPacketList(
       &parsed_packet_list, *decoder_database_, &current_rtp_payload_type_,
@@ -749,15 +756,20 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
   RTC_DCHECK(dec_info);  // Already checked that the payload type is known.
 
   NetEqController::PacketArrivedInfo info;
+  // 非音频包
   info.is_cng_or_dtmf = dec_info->IsComfortNoise() || dec_info->IsDtmf();
+  // 音频包中的样点个数？
   info.packet_length_samples =
       number_of_primary_packets * decoder_frame_length_;
   info.main_timestamp = main_timestamp;
   info.main_sequence_number = main_sequence_number;
+  // discontinuous transmission (DTX，非连续包)
   info.is_dtx = is_dtx;
+  // PacketBuffer 状态同步，是否刷新
   info.buffer_flush = buffer_flush_occured;
 
   const bool should_update_stats = !new_codec_;
+  // 更新net_eq_controller
   auto relative_delay =
       controller_->PacketArrived(fs_hz_, should_update_stats, info);
   if (relative_delay) {

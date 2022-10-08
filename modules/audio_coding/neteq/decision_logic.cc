@@ -125,6 +125,7 @@ void DecisionLogic::SetSampleRate(int fs_hz, size_t output_size_samples) {
   packet_arrival_history_.set_sample_rate(fs_hz);
 }
 
+// 根据上一次的状态，得到本次状态
 NetEq::Operation DecisionLogic::GetDecision(const NetEqStatus& status,
                                             bool* reset_decoder) {
   // If last mode was CNG (or Expand, since this could be covering up for
@@ -222,6 +223,7 @@ void DecisionLogic::NotifyMutedState() {
 int DecisionLogic::TargetLevelMs() const {
   int target_delay_ms = delay_manager_->TargetDelayMs();
   if (!config_.enable_stable_playout_delay) {
+    // 固定的延迟
     target_delay_ms =
         std::max(target_delay_ms,
                  static_cast<int>(packet_length_samples_ / sample_rate_khz_));
@@ -240,30 +242,40 @@ int DecisionLogic::GetFilteredBufferLevel() const {
   return buffer_level_filter_->filtered_current_level();
 }
 
+// fs_hz，音频采样频率
+// should_update_stats，状态是否未发生改变，发生改变则不再更新统计信息
 absl::optional<int> DecisionLogic::PacketArrived(
     int fs_hz,
     bool should_update_stats,
     const PacketArrivedInfo& info) {
+  // 上一次 buffer_flush 可能没有被处理
   buffer_flush_ = buffer_flush_ || info.buffer_flush;
   if (!should_update_stats || info.is_cng_or_dtmf) {
     return absl::nullopt;
   }
   if (info.packet_length_samples > 0 && fs_hz > 0 &&
       info.packet_length_samples != packet_length_samples_) {
+      // 音频包长发生改变
     packet_length_samples_ = info.packet_length_samples;
+    // 设置一个音频包对应的 ms 时长，samples / (fs_hz / 1000)
     delay_manager_->SetPacketAudioLength(packet_length_samples_ * 1000 / fs_hz);
   }
+
+  /// 包到达时延估计
   int64_t time_now_ms = tick_timer_->ticks() * tick_timer_->ms_per_tick();
   packet_arrival_history_.Insert(info.main_timestamp, time_now_ms);
   if (packet_arrival_history_.size() < 2) {
     // No meaningful delay estimate unless at least 2 packets have arrived.
     return absl::nullopt;
   }
+  // 计算包的延迟时间
   int arrival_delay_ms =
       packet_arrival_history_.GetDelayMs(info.main_timestamp, time_now_ms);
+  // 新来包是否是时间戳最大的包，即没有乱序
   bool reordered =
       !packet_arrival_history_.IsNewestRtpTimestamp(info.main_timestamp);
   delay_manager_->Update(arrival_delay_ms, reordered);
+
   return arrival_delay_ms;
 }
 
@@ -277,6 +289,7 @@ void DecisionLogic::FilterBufferLevel(size_t buffer_size_samples) {
 
   if (buffer_flush_) {
     buffer_level_filter_->SetFilteredBufferLevel(buffer_size_samples);
+    // 确认 buffer_flush 被处理了
     buffer_flush_ = false;
   } else {
     buffer_level_filter_->Update(buffer_size_samples, time_stretched_samples);

@@ -397,6 +397,7 @@ bool CopyAndRewriteVui(const SpsParser::SpsState& sps,
       // log2_max_mv_length_vertical: ue(v)
       CopyExpGolomb(source, destination);
       // ********* IMPORTANT! **********
+      // 这里修改了sps，不支持B 帧
       // The next two are the ones we need to set to low numbers:
       // max_num_reorder_frames: ue(v)
       // max_dec_frame_buffering: ue(v)

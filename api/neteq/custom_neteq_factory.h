@@ -25,6 +25,7 @@ namespace webrtc {
 // custom NetEqControllerFactory.
 class CustomNetEqFactory : public NetEqFactory {
  public:
+  // 应用层定制NetEqControllerFactory，一般不用
   explicit CustomNetEqFactory(
       std::unique_ptr<NetEqControllerFactory> controller_factory);
   ~CustomNetEqFactory() override;

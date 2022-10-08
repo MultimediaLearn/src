@@ -24,13 +24,17 @@ void PacketArrivalHistory::Insert(uint32_t rtp_timestamp,
                                   int64_t arrival_time_ms) {
   RTC_DCHECK(sample_rate_khz_ > 0);
   int64_t unwrapped_rtp_timestamp = timestamp_unwrapper_.Unwrap(rtp_timestamp);
+  // 更新最新包的采集时间
   if (!newest_rtp_timestamp_ ||
       unwrapped_rtp_timestamp > *newest_rtp_timestamp_) {
     newest_rtp_timestamp_ = unwrapped_rtp_timestamp;
   }
+  // 采集时间和到达时间
   history_.emplace_back(unwrapped_rtp_timestamp / sample_rate_khz_,
                         arrival_time_ms);
   MaybeUpdateCachedArrivals(history_.back());
+
+  // 如果队头元素 rtp 时间和最新包间隔太大，则淘汰掉
   while (history_.front().rtp_timestamp_ms + window_size_ms_ <
          unwrapped_rtp_timestamp / sample_rate_khz_) {
     if (&history_.front() == min_packet_arrival_) {
@@ -97,6 +101,8 @@ int PacketArrivalHistory::GetPacketArrivalDelayMs(
   if (!min_packet_arrival_) {
     return 0;
   }
+  // (p.arrival - p.rtp) - (min.arr - min.rtp)
+  // p 传输时间 - 最小传输时间
   return std::max(static_cast<int>(packet_arrival.arrival_time_ms -
                                    min_packet_arrival_->arrival_time_ms -
                                    (packet_arrival.rtp_timestamp_ms -

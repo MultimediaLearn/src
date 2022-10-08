@@ -90,10 +90,12 @@ DelayManager::DelayManager(const Config& config, const TickTimer* tick_timer)
 
 DelayManager::~DelayManager() {}
 
+// 更新的时候计算目标延迟，通过延迟 + PacketBuffer 深度估计下溢出概率
 void DelayManager::Update(int arrival_delay_ms, bool reordered) {
   if (!reorder_optimizer_ || !reordered) {
     underrun_optimizer_.Update(arrival_delay_ms);
   }
+  // 下溢出概率必须小于指定值
   target_level_ms_ =
       underrun_optimizer_.GetOptimalDelayMs().value_or(kStartDelayMs);
   if (reorder_optimizer_) {
@@ -102,6 +104,8 @@ void DelayManager::Update(int arrival_delay_ms, bool reordered) {
         target_level_ms_, reorder_optimizer_->GetOptimalDelayMs().value_or(0));
   }
   unlimited_target_level_ms_ = target_level_ms_;
+
+  // 其他启发式限制约束
   target_level_ms_ = std::max(target_level_ms_, effective_minimum_delay_ms_);
   if (maximum_delay_ms_ > 0) {
     target_level_ms_ = std::min(target_level_ms_, maximum_delay_ms_);

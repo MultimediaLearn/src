@@ -369,10 +369,14 @@ class NetEqImpl : public webrtc::NetEq {
   std::unique_ptr<PreemptiveExpand> preemptive_expand_ RTC_GUARDED_BY(mutex_);
   RandomVector random_vector_ RTC_GUARDED_BY(mutex_);
   std::unique_ptr<ComfortNoise> comfort_noise_ RTC_GUARDED_BY(mutex_);
+  // 采样频率对应 8k 的倍数，如fs_hz_=16k, fs_mult_=2
   int fs_hz_ RTC_GUARDED_BY(mutex_);
   int fs_mult_ RTC_GUARDED_BY(mutex_);
+  // 最后一次输出的音频包的采样率
   int last_output_sample_rate_hz_ RTC_GUARDED_BY(mutex_);
+  // 输出包的样点个数
   size_t output_size_samples_ RTC_GUARDED_BY(mutex_);
+  // 输出帧的样点个数，一帧对应2 包？
   size_t decoder_frame_length_ RTC_GUARDED_BY(mutex_);
   Mode last_mode_ RTC_GUARDED_BY(mutex_);
   Operation last_operation_ RTC_GUARDED_BY(mutex_);

@@ -10,6 +10,7 @@
 #
 
 # Aliases.
+set -x
 BIN=$1
 TEST_RTC_EVENT_LOG=$2
 INPUT_PCM_FILE=$3

@@ -149,6 +149,7 @@ int PacketBuffer::InsertPacket(Packet&& packet,
 
   packet.waiting_time = tick_timer_->GetNewStopwatch();
 
+  /// 强制刷新缓存
   // Perform a smart flush if the buffer size exceeds a multiple of the target
   // level.
   const size_t span_threshold =
@@ -216,6 +217,7 @@ int PacketBuffer::InsertPacketList(
   RTC_DCHECK(stats);
   bool flushed = false;
   for (auto& packet : *packet_list) {
+    // 舒适噪声
     if (decoder_database.IsComfortNoise(packet.payload_type)) {
       if (*current_cng_rtp_payload_type &&
           **current_cng_rtp_payload_type != packet.payload_type) {
@@ -226,6 +228,7 @@ int PacketBuffer::InsertPacketList(
       }
       *current_cng_rtp_payload_type = packet.payload_type;
     } else if (!decoder_database.IsDtmf(packet.payload_type)) {
+    // 不是dtmf，一定是语音
       // This must be speech.
       if ((*current_rtp_payload_type &&
            **current_rtp_payload_type != packet.payload_type) ||
@@ -251,6 +254,7 @@ int PacketBuffer::InsertPacketList(
       return return_val;
     }
   }
+  // 清空包缓存队列
   packet_list->clear();
   return flushed ? kFlushed : kOK;
 }

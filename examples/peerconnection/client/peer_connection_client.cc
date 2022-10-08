@@ -92,7 +92,8 @@ void PeerConnectionClient::Connect(const std::string& server,
 
   server_address_.SetIP(server);
   server_address_.SetPort(port);
-  client_name_ = client_name;
+  srand(time(NULL));
+  client_name_ = client_name + std::to_string(random());
 
   if (server_address_.IsUnresolvedIP()) {
     state_ = RESOLVING;

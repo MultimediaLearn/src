@@ -1178,7 +1178,8 @@ bool PhysicalSocketServer::Wait(webrtc::TimeDelta max_wait_duration,
                                 bool process_io) {
   // We don't support reentrant waiting.
   RTC_DCHECK(!waiting_);
-  ScopedSetTrue s(&waiting_);
+  // fix peerconnection_client coredump
+  // ScopedSetTrue s(&waiting_);
   const int cmsWait = ToCmsWait(max_wait_duration);
 #if defined(WEBRTC_USE_EPOLL)
   // We don't keep a dedicated "epoll" descriptor containing only the non-IO

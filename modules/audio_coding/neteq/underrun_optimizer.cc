@@ -37,6 +37,7 @@ void UnderrunOptimizer::Update(int relative_delay_ms) {
     if (!resample_stopwatch_) {
       resample_stopwatch_ = tick_timer_->GetNewStopwatch();
     }
+    // 输入delay 重采样，取一段时间较大值
     if (static_cast<int>(resample_stopwatch_->ElapsedMs()) >
         *resample_interval_ms_) {
       histogram_update = max_delay_in_interval_ms_;

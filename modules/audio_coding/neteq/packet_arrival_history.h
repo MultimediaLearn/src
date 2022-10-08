@@ -69,7 +69,9 @@ class PacketArrivalHistory {
   int GetPacketArrivalDelayMs(const PacketArrival& packet_arrival) const;
   // Updates `min_packet_arrival_` and `max_packet_arrival_`.
   void MaybeUpdateCachedArrivals(const PacketArrival& packet);
+  // 最小链路传输时间，也可以看成正常链路延迟
   const PacketArrival* min_packet_arrival_ = nullptr;
+  // 最大链路传输时间
   const PacketArrival* max_packet_arrival_ = nullptr;
   const int window_size_ms_;
   TimestampUnwrapper timestamp_unwrapper_;
