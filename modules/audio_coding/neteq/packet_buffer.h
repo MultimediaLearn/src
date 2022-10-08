@@ -156,6 +156,7 @@ class PacketBuffer {
   virtual bool ContainsDtxOrCngPacket(
       const DecoderDatabase* decoder_database) const;
 
+  // 是否是淘汰的时间戳
   // Static method returning true if `timestamp` is older than `timestamp_limit`
   // but less than `horizon_samples` behind `timestamp_limit`. For instance,
   // with timestamp_limit = 100 and horizon_samples = 10, a timestamp in the

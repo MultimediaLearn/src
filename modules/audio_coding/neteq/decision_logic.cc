@@ -203,6 +203,7 @@ NetEq::Operation DecisionLogic::GetDecision(const NetEqStatus& status,
   if (status.target_timestamp == status.next_packet->timestamp) {
     return ExpectedPacketAvailable(status);
   }
+  // 下一个包的时间戳不是废弃的时间戳
   if (!PacketBuffer::IsObsoleteTimestamp(status.next_packet->timestamp,
                                          status.target_timestamp,
                                          five_seconds_samples)) {
@@ -210,6 +211,7 @@ NetEq::Operation DecisionLogic::GetDecision(const NetEqStatus& status,
   }
   // This implies that available_timestamp < target_timestamp, which can
   // happen when a new stream or codec is received. Signal for a reset.
+  // Use kUndefined to flag for a reset.
   return NetEq::Operation::kUndefined;
 }
 
@@ -283,6 +285,7 @@ void DecisionLogic::FilterBufferLevel(size_t buffer_size_samples) {
   time_stretched_cn_samples_ = 0;
 }
 
+// 决策产生舒适噪声
 NetEq::Operation DecisionLogic::CngOperation(
     NetEqController::NetEqStatus status) {
   // Signed difference between target and available timestamp.
@@ -315,6 +318,7 @@ NetEq::Operation DecisionLogic::CngOperation(
   }
 }
 
+// 没有包？
 NetEq::Operation DecisionLogic::NoPacket(NetEqController::NetEqStatus status) {
   if (cng_state_ == kCngRfc3389On) {
     // Keep on playing comfort noise.
@@ -330,6 +334,7 @@ NetEq::Operation DecisionLogic::NoPacket(NetEqController::NetEqStatus status) {
   }
 }
 
+// 需要的包存在
 NetEq::Operation DecisionLogic::ExpectedPacketAvailable(
     NetEqController::NetEqStatus status) {
   if (!disallow_time_stretching_ && status.last_mode != NetEq::Mode::kExpand &&
@@ -359,8 +364,10 @@ NetEq::Operation DecisionLogic::ExpectedPacketAvailable(
 
       const int buffer_level_samples =
           buffer_level_filter_->filtered_current_level();
+      // 超过 4倍上限，必须加速
       if (buffer_level_samples >= high_limit << 2)
         return NetEq::Operation::kFastAccelerate;
+      // 可以变速，进行变速
       if (TimescaleAllowed()) {
         if (buffer_level_samples >= high_limit)
           return NetEq::Operation::kAccelerate;
@@ -372,6 +379,7 @@ NetEq::Operation DecisionLogic::ExpectedPacketAvailable(
   return NetEq::Operation::kNormal;
 }
 
+// 需要的包不存在，但是未来包存在
 NetEq::Operation DecisionLogic::FuturePacketAvailable(
     NetEqController::NetEqStatus status) {
   // Required packet is not available, but a future packet is.

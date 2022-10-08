@@ -16,6 +16,7 @@
 
 namespace webrtc {
 
+// buffer level 指数加权平滑
 class BufferLevelFilter {
  public:
   BufferLevelFilter();
