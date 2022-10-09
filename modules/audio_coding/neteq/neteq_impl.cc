@@ -1048,9 +1048,11 @@ int NetEqImpl::GetDecision(Operation* operation,
   *play_dtmf = false;
   *operation = Operation::kUndefined;
 
+  /// 更新 packet buffer 状态
   RTC_DCHECK(sync_buffer_.get());
   uint32_t end_timestamp = sync_buffer_->end_timestamp();
   if (!new_codec_) {
+    // 淘汰 packet_buffer历史数据
     const uint32_t five_seconds_samples = 5 * fs_hz_;
     packet_buffer_->DiscardOldPackets(end_timestamp, five_seconds_samples,
                                       stats_.get());

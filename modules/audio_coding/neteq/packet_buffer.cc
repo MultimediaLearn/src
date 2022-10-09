@@ -327,6 +327,7 @@ void PacketBuffer::DiscardOldPackets(uint32_t timestamp_limit,
         !IsObsoleteTimestamp(p.timestamp, timestamp_limit, horizon_samples)) {
       return false;
     }
+    // 记录有包被淘汰掉了
     LogPacketDiscarded(p.priority.codec_level, stats);
     return true;
   });
@@ -379,9 +380,12 @@ size_t PacketBuffer::GetSpanSamples(size_t last_decoded_length,
     return 0;
   }
 
+  // 不包含最后一个frame duration的时长
   size_t span = buffer_.back().timestamp - buffer_.front().timestamp;
+  // buffer 中包含frame，且frame的时长有效
   if (buffer_.back().frame && buffer_.back().frame->Duration() > 0) {
     size_t duration = buffer_.back().frame->Duration();
+    // 统计填充噪声，且最后一包是填充噪声
     if (count_dtx_waiting_time && buffer_.back().frame->IsDtxPacket()) {
       size_t waiting_time_samples = rtc::dchecked_cast<size_t>(
           buffer_.back().waiting_time->ElapsedMs() * (sample_rate / 1000));

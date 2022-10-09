@@ -78,23 +78,23 @@ class NetEqController {
   };
 
   struct PacketBufferInfo {
-    bool dtx_or_cng;
-    size_t num_samples;
-    size_t span_samples;
-    size_t span_samples_no_dtx;
-    size_t num_packets;
+    bool dtx_or_cng;            // 是否包含填充噪声或舒适噪声
+    size_t num_samples;         // 样点总数
+    size_t span_samples;        // 总时长跨度
+    size_t span_samples_no_dtx; // 总时长跨度，不包含填充噪声
+    size_t num_packets;         // 总的packet 数，即buffer 的size
   };
 
   struct NetEqStatus {
-    uint32_t target_timestamp;
-    int16_t expand_mutefactor;
-    size_t last_packet_samples;
-    absl::optional<PacketInfo> next_packet;
-    NetEq::Mode last_mode;
-    bool play_dtmf;
-    size_t generated_noise_samples;
-    PacketBufferInfo packet_buffer_info;
-    size_t sync_buffer_samples;
+    uint32_t target_timestamp;              // 目标样点时间戳
+    int16_t expand_mutefactor;              // 当前expand 的mute 增益
+    size_t last_packet_samples;             // 上一个packet 的样点数
+    absl::optional<PacketInfo> next_packet; // 包信息
+    NetEq::Mode last_mode;                  // 上一次的模式
+    bool play_dtmf;                         // 是否在DTMF 状态
+    size_t generated_noise_samples;         // 舒适噪声样点数
+    PacketBufferInfo packet_buffer_info;    // packet buffer 状态
+    size_t sync_buffer_samples;             // sync buffer样点数
   };
 
   struct PacketArrivedInfo {

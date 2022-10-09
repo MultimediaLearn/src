@@ -143,12 +143,14 @@ NetEq::Operation DecisionLogic::GetDecision(const NetEqStatus& status,
     num_consecutive_expands_ = 0;
   }
 
+  // 没有产生额外数据
   if (!IsExpand(status.last_mode) && !IsCng(status.last_mode)) {
     last_playout_delay_ms_ = GetPlayoutDelayMs(status);
   }
-
+  // 有时间伸缩
   prev_time_scale_ = prev_time_scale_ && IsTimestretch(status.last_mode);
   if (prev_time_scale_) {
+    // 生成新的倒计时器
     timescale_countdown_ = tick_timer_->GetNewCountdown(kMinTimescaleInterval);
   }
   if (!IsCng(status.last_mode)) {
@@ -181,6 +183,7 @@ NetEq::Operation DecisionLogic::GetDecision(const NetEqStatus& status,
     return NetEq::Operation::kNormal;
   }
 
+  // 没有过多expand，可以继续expand 处理
   // Make sure we don't restart audio too soon after an expansion to avoid
   // running out of data right away again. We should only wait if there are no
   // DTX or CNG packets in the buffer (otherwise we should just play out what we
@@ -190,8 +193,8 @@ NetEq::Operation DecisionLogic::GetDecision(const NetEqStatus& status,
   // Note that the MuteFactor is in Q14, so a value of 16384 corresponds to 1.
   const int target_level_samples = TargetLevelMs() * sample_rate_khz_;
   if (!config_.enable_stable_playout_delay && IsExpand(status.last_mode) &&
-      status.expand_mutefactor < 16384 / 2 &&
-      status.packet_buffer_info.span_samples <
+      status.expand_mutefactor < 16384 / 2 &&      // < 0.5
+      status.packet_buffer_info.span_samples <     // < 0.5
           static_cast<size_t>(target_level_samples * kPostponeDecodingLevel /
                               100) &&
       !status.packet_buffer_info.dtx_or_cng) {
