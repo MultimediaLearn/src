@@ -778,6 +778,7 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
   return 0;
 }
 
+// 对外接口，输出解码后样点数据
 int NetEqImpl::GetAudioInternal(AudioFrame* audio_frame,
                                 bool* muted,
                                 absl::optional<Operation> action_override) {
@@ -1032,6 +1033,12 @@ int NetEqImpl::GetAudioInternal(AudioFrame* audio_frame,
   return return_value;
 }
 
+// proteced 函数，内部调用
+// operation, 决策结果
+// packet_list, 将要解码的包
+// dtmf_event, dtmf 事件
+// play_dtmf, 是否需要产生DTMF
+// action_override, 外部指定的action，替代controller 的决策
 int NetEqImpl::GetDecision(Operation* operation,
                            PacketList* packet_list,
                            DtmfEvent* dtmf_event,
@@ -1062,6 +1069,7 @@ int NetEqImpl::GetDecision(Operation* operation,
     // Because of timestamp peculiarities, we have to "manually" disallow using
     // a CNG packet with the same timestamp as the one that was last played.
     // This can happen when using redundancy and will cause the timing to shift.
+    // 舒适噪声时间戳调整，可能造成数据冗余，手动删除
     while (packet && decoder_database_->IsComfortNoise(packet->payload_type) &&
            (end_timestamp >= packet->timestamp ||
             end_timestamp + generated_noise_samples > packet->timestamp)) {
@@ -1082,6 +1090,7 @@ int NetEqImpl::GetDecision(Operation* operation,
   RTC_DCHECK(expand_.get());
   const int samples_left = static_cast<int>(sync_buffer_->FutureLength() -
                                             expand_->overlap_length());
+  // IsTimestretch(), 变速播放
   if (last_mode_ == Mode::kAccelerateSuccess ||
       last_mode_ == Mode::kAccelerateLowEnergy ||
       last_mode_ == Mode::kPreemptiveExpandSuccess ||
@@ -1131,6 +1140,7 @@ int NetEqImpl::GetDecision(Operation* operation,
   }
   *operation = controller_->GetDecision(status, &reset_decoder_);
 
+  // DTX 模式下不允许加减速
   // Disallow time stretching if this packet is DTX, because such a decision may
   // be based on earlier buffer level estimate, as we do not update buffer level
   // during DTX. When we have a better way to update buffer level during DTX,
@@ -1166,6 +1176,7 @@ int NetEqImpl::GetDecision(Operation* operation,
   }
 
   // Check conditions for reset.
+  // Operation::kUndefined 会触发 reset
   if (new_codec_ || *operation == Operation::kUndefined) {
     // The only valid reason to get kUndefined is that new_codec_ is set.
     RTC_DCHECK(new_codec_);
@@ -1230,6 +1241,7 @@ int NetEqImpl::GetDecision(Operation* operation,
     }
     case Operation::kAccelerate:
     case Operation::kFastAccelerate: {
+      // 至少有30ms 的数据才可以加速
       // In order to do an accelerate we need at least 30 ms of audio data.
       if (samples_left >= static_cast<int>(samples_30_ms)) {
         // Already have enough data, so we do not need to extract any more.
@@ -1257,6 +1269,7 @@ int NetEqImpl::GetDecision(Operation* operation,
       break;
     }
     case Operation::kPreemptiveExpand: {
+      // 至少有30ms 的数据才可以减速
       // In order to do a preemptive expand we need at least 30 ms of decoded
       // audio data.
       if ((samples_left >= static_cast<int>(samples_30_ms)) ||
@@ -1313,6 +1326,7 @@ int NetEqImpl::GetDecision(Operation* operation,
 
   if (*operation == Operation::kAccelerate ||
       *operation == Operation::kFastAccelerate) {
+    // 再次检查缓存数据是否够加速用
     // Check that we have enough data (30ms) to do accelerate.
     if (extracted_samples + samples_left < static_cast<int>(samples_30_ms)) {
       // TODO(hlundin): Write test for this.

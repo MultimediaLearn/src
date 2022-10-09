@@ -16,6 +16,7 @@
 
 namespace webrtc {
 
+// 还没有播放的长度
 size_t SyncBuffer::FutureLength() const {
   return Size() - next_index_;
 }

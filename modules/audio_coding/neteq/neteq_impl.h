@@ -384,7 +384,7 @@ class NetEqImpl : public webrtc::NetEq {
   std::unique_ptr<int16_t[]> decoded_buffer_ RTC_GUARDED_BY(mutex_);
   uint32_t playout_timestamp_ RTC_GUARDED_BY(mutex_);
   bool new_codec_ RTC_GUARDED_BY(mutex_);
-  uint32_t timestamp_ RTC_GUARDED_BY(mutex_);
+  uint32_t timestamp_ RTC_GUARDED_BY(mutex_); // 最新包的时间戳?
   bool reset_decoder_ RTC_GUARDED_BY(mutex_);
   absl::optional<uint8_t> current_rtp_payload_type_ RTC_GUARDED_BY(mutex_);
   absl::optional<uint8_t> current_cng_rtp_payload_type_ RTC_GUARDED_BY(mutex_);
