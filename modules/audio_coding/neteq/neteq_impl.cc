@@ -822,6 +822,7 @@ int NetEqImpl::GetAudioInternal(AudioFrame* audio_frame,
     *muted = true;
     return 0;
   }
+
   int return_value = GetDecision(&operation, &packet_list, &dtmf_event,
                                  &play_dtmf, action_override);
   if (return_value != 0) {
@@ -1365,6 +1366,7 @@ int NetEqImpl::Decode(PacketList* packet_list,
       }
       bool decoder_changed;
       decoder_database_->SetActiveDecoder(payload_type, &decoder_changed);
+      // 处理解码器变化的情况
       if (decoder_changed) {
         // We have a new decoder. Re-init some values.
         const DecoderDatabase::DecoderInfo* decoder_info =
@@ -1389,7 +1391,7 @@ int NetEqImpl::Decode(PacketList* packet_list,
       }
     }
   }
-
+  // 处理解码器重置标记
   if (reset_decoder_) {
     // TODO(hlundin): Write test for this.
     if (decoder)
