@@ -833,6 +833,7 @@ int NetEqImpl::GetAudioInternal(AudioFrame* audio_frame,
   AudioDecoder::SpeechType speech_type;
   int length = 0;
   const size_t start_num_packets = packet_list.size();
+  // 执行解码，节后后的数据保存在 decoded_buffer_中
   int decode_return_value =
       Decode(&packet_list, &operation, &length, &speech_type);
 
@@ -854,6 +855,7 @@ int NetEqImpl::GetAudioInternal(AudioFrame* audio_frame,
   }
 
   algorithm_buffer_->Clear();
+  // 执行算法操作
   switch (operation) {
     case Operation::kNormal: {
       DoNormal(decoded_buffer_.get(), length, speech_type, play_dtmf);
@@ -999,6 +1001,7 @@ int NetEqImpl::GetAudioInternal(AudioFrame* audio_frame,
     sync_buffer_->set_dtmf_index(sync_buffer_->Size());
   }
 
+  /// 计算输出帧的时间戳
   if (last_mode_ != Mode::kExpand && last_mode_ != Mode::kCodecPlc) {
     // If last operation was not expand, calculate the `playout_timestamp_` from
     // the `sync_buffer_`. However, do not update the `playout_timestamp_` if it
@@ -1483,6 +1486,7 @@ int NetEqImpl::DecodeCng(AudioDecoder* decoder,
   return 0;
 }
 
+// 执行实际的解码操作
 int NetEqImpl::DecodeLoop(PacketList* packet_list,
                           const Operation& operation,
                           AudioDecoder* decoder,
@@ -1504,12 +1508,14 @@ int NetEqImpl::DecodeLoop(PacketList* packet_list,
                operation == Operation::kMerge ||
                operation == Operation::kPreemptiveExpand);
 
+    // 解码一帧，保存在 decoded_buffer_ 中，然后弹出
     auto opt_result = packet_list->front().frame->Decode(
         rtc::ArrayView<int16_t>(&decoded_buffer_[*decoded_length],
                                 decoded_buffer_length_ - *decoded_length));
     last_decoded_packet_infos_.push_back(
         std::move(packet_list->front().packet_info));
     packet_list->pop_front();
+
     if (opt_result) {
       const auto& result = *opt_result;
       *speech_type = result.speech_type;
