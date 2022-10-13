@@ -106,10 +106,12 @@ void PacketBuffer::Flush(StatisticsCalculator* stats) {
   stats->FlushedPacketBuffer();
 }
 
+// 部分刷新，最多保留一半最大包数，同时不低于下限
 void PacketBuffer::PartialFlush(int target_level_ms,
                                 size_t sample_rate,
                                 size_t last_decoded_length,
                                 StatisticsCalculator* stats) {
+  // 用上下限限制刷新目标位置
   // Make sure that at least half the packet buffer capacity will be available
   // after the flush. This is done to avoid getting stuck if the target level is
   // very high.
@@ -119,6 +121,7 @@ void PacketBuffer::PartialFlush(int target_level_ms,
   // We should avoid flushing to very low levels.
   target_level_samples = std::max(
       target_level_samples, smart_flushing_config_->target_level_threshold_ms);
+
   while (GetSpanSamples(last_decoded_length, sample_rate, true) >
              static_cast<size_t>(target_level_samples) ||
          buffer_.size() > max_number_of_packets_ / 2) {
@@ -146,10 +149,11 @@ int PacketBuffer::InsertPacket(Packet&& packet,
   RTC_DCHECK_GE(packet.priority.red_level, 0);
 
   int return_val = kOK;
-
+  // 用于记录packet 处理时延，也用于计算填充噪声
   packet.waiting_time = tick_timer_->GetNewStopwatch();
 
-  /// 强制刷新缓存
+  /// 刷新包缓存
+  /// 如果配置了自适应刷新，决策智能刷新packet_buffer_
   // Perform a smart flush if the buffer size exceeds a multiple of the target
   // level.
   const size_t span_threshold =
@@ -162,14 +166,18 @@ int PacketBuffer::InsertPacket(Packet&& packet,
   const bool smart_flush =
       smart_flushing_config_.has_value() &&
       GetSpanSamples(last_decoded_length, sample_rate, true) >= span_threshold;
+  // 总包数超了，强制刷新
   if (buffer_.size() >= max_number_of_packets_ || smart_flush) {
+    // 强制刷新 or 智能刷新
     size_t buffer_size_before_flush = buffer_.size();
     if (smart_flushing_config_.has_value()) {
+      // 允许智能刷新，刷新到目标level，但最多保留一半的包
       // Flush down to the target level.
       PartialFlush(target_level_ms, sample_rate, last_decoded_length, stats);
       return_val = kPartialFlush;
     } else {
       // Buffer is full.
+      // 强制刷新，清空全部包 clear
       Flush(stats);
       return_val = kFlushed;
     }
@@ -178,12 +186,14 @@ int PacketBuffer::InsertPacket(Packet&& packet,
                         << " packets discarded.";
   }
 
+  /// 将当前包插入包队列，根据codec level 和 red level 排序
   // Get an iterator pointing to the place in the buffer where the new packet
   // should be inserted. The list is searched from the back, since the most
   // likely case is that the new packet should be near the end of the list.
   PacketList::reverse_iterator rit = std::find_if(
       buffer_.rbegin(), buffer_.rend(), NewTimestampIsLarger(packet));
 
+  // 忽略时间戳相同的低优先级包
   // The new packet is to be inserted to the right of `rit`. If it has the same
   // timestamp as `rit`, which has a higher priority, do not insert the new
   // packet to list.
@@ -192,6 +202,7 @@ int PacketBuffer::InsertPacket(Packet&& packet,
     return return_val;
   }
 
+  // 替换时间戳相同的低优先级包
   // The new packet is to be inserted to the left of `it`. If it has the same
   // timestamp as `it`, which has a lower priority, replace `it` with the new
   // packet.
@@ -373,6 +384,7 @@ size_t PacketBuffer::NumSamplesInBuffer(size_t last_decoded_length) const {
   return num_samples;
 }
 
+// buffer 中当前总数据量
 size_t PacketBuffer::GetSpanSamples(size_t last_decoded_length,
                                     size_t sample_rate,
                                     bool count_dtx_waiting_time) const {
@@ -382,6 +394,7 @@ size_t PacketBuffer::GetSpanSamples(size_t last_decoded_length,
 
   // 不包含最后一个frame duration的时长
   size_t span = buffer_.back().timestamp - buffer_.front().timestamp;
+
   // buffer 中包含frame，且frame的时长有效
   if (buffer_.back().frame && buffer_.back().frame->Duration() > 0) {
     size_t duration = buffer_.back().frame->Duration();

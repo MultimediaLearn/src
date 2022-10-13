@@ -1991,6 +1991,7 @@ int NetEqImpl::DtmfOverdub(const DtmfEvent& dtmf_event,
   return dtmf_return_value < 0 ? dtmf_return_value : 0;
 }
 
+// 从packet_buffer_ 获取需要的音频包
 int NetEqImpl::ExtractPackets(size_t required_samples,
                               PacketList* packet_list) {
   bool first_packet = true;
