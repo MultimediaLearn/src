@@ -514,6 +514,7 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
     packet.sequence_number = rtp_header.sequenceNumber;
     packet.timestamp = rtp_header.timestamp;
     packet.payload.SetData(payload.data(), payload.size());
+    // 更信息的rtp 信息，包括 ssrc 和csrc
     packet.packet_info = RtpPacketInfo(rtp_header, receive_time);
     // Waiting time will be set upon inserting the packet in the buffer.
     RTC_DCHECK(!packet.waiting_time);
@@ -527,6 +528,7 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
     timestamp_scaler_->Reset();
   }
 
+  // 非RED包，时间戳转化为用样点表示的时间戳
   if (!decoder_database_->IsRed(rtp_header.payloadType)) {
     // Scale timestamp to internal domain (only for some codecs).
     timestamp_scaler_->ToInternal(&packet_list);
@@ -548,22 +550,24 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
     packet_buffer_->Flush(stats_.get());
     dtmf_buffer_->Flush();
 
-    // Update audio buffer timestamp.
+    // Update audio buffer timestamp to keep in align with main_timestamp.
     sync_buffer_->IncreaseEndTimestamp(main_timestamp - timestamp_);
 
     // Update codecs.
     timestamp_ = main_timestamp;
   }
 
+  // nack process
   if (nack_enabled_) {
     RTC_DCHECK(nack_);
     if (update_sample_rate_and_channels) {
       nack_->Reset();
     }
+    // 更新nack 状态
     nack_->UpdateLastReceivedPacket(main_sequence_number, main_timestamp);
   }
 
-  // 冗余编码
+  // 冗余编码，拆分
   // Check for RED payload type, and separate payloads into several packets.
   if (decoder_database_->IsRed(rtp_header.payloadType)) {
     if (!red_payload_splitter_->SplitRed(&packet_list)) {
@@ -577,7 +581,7 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
     }
   }
 
-  // Check payload types.
+  // Check payload decoder types.
   if (decoder_database_->CheckPayloadTypes(packet_list) ==
       DecoderDatabase::kDecoderNotFound) {
     return kUnknownRtpPayloadType;
@@ -585,6 +589,7 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
 
   RTC_DCHECK(!packet_list.empty());
 
+  // RED 包
   // Update main_timestamp, if new packets appear in the list
   // after RED splitting.
   if (decoder_database_->IsRed(rtp_header.payloadType)) {
@@ -611,6 +616,7 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
       if (dtmf_buffer_->InsertEvent(event) != DtmfBuffer::kOK) {
         return kDtmfInsertError;
       }
+      // 处理完删除 DTMF 包
       it = packet_list.erase(it);
     } else {
       ++it;
@@ -628,8 +634,10 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
       return kUnknownRtpPayloadType;
     }
 
+    // CNG 包
     if (info->IsComfortNoise()) {
       // Carry comfort noise packets along.
+      // cng packet 转移到 parsed_packet_list
       parsed_packet_list.splice(parsed_packet_list.end(), packet_list,
                                 packet_list.begin());
     } else {
@@ -649,10 +657,12 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
         return new_packet;
       };
 
+      // parse packet
       std::vector<AudioDecoder::ParseResult> results =
           info->GetDecoder()->ParsePayload(std::move(packet.payload),
                                            packet.timestamp);
       if (results.empty()) {
+        // parse 失败的包，删除
         packet_list.pop_front();
       } else {
         bool first = true;
@@ -661,12 +671,14 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
           RTC_DCHECK_GE(result.priority, 0);
           is_dtx = is_dtx || result.frame->IsDtxPacket();
           if (first) {
+            // 更新自身原始包，并移动到 parsed_packet_list
             // Re-use the node and move it to parsed_packet_list.
             packet_list.front() = packet_from_result(result);
             parsed_packet_list.splice(parsed_packet_list.end(), packet_list,
                                       packet_list.begin());
             first = false;
           } else {
+            // 其他拆分后的包重新由result 构建，然后移动到 parsed_packet_list
             parsed_packet_list.push_back(packet_from_result(result));
           }
         }
@@ -674,21 +686,22 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
     }
   }
 
+  // 计数正常包
   // Calculate the number of primary (non-FEC/RED) packets.
   const size_t number_of_primary_packets = std::count_if(
       parsed_packet_list.begin(), parsed_packet_list.end(),
       // level 0 是最高优先级
       [](const Packet& in) { return in.priority.codec_level == 0; });
   if (number_of_primary_packets < parsed_packet_list.size()) {
-    // 统计FEC包
+    // 如果含有非正常包，再统计FEC包
     stats_->SecondaryPacketsReceived(parsed_packet_list.size() -
                                      number_of_primary_packets);
   }
 
   /// 真正将数据报插入缓存队列
-  // Insert packets in buffer.
-  // 计算target_level，ms 为单位
+  // 计算target_level，目标buffer 水位， ms
   const int target_level_ms = controller_->TargetLevelMs();
+  // Insert packets in buffer.
   const int ret = packet_buffer_->InsertPacketList(
       &parsed_packet_list, *decoder_database_, &current_rtp_payload_type_,
       &current_cng_rtp_payload_type_, stats_.get(), decoder_frame_length_,
@@ -731,7 +744,7 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
     const Packet* next_packet = packet_buffer_->PeekNextPacket();
     RTC_DCHECK(next_packet);
     const int payload_type = next_packet->payload_type;
-    size_t channels = 1;
+    size_t channels = 1;  // 默认为 1
     if (!decoder_database_->IsComfortNoise(payload_type)) {
       AudioDecoder* decoder = decoder_database_->GetDecoder(payload_type);
       RTC_DCHECK(decoder);  // Payloads are already checked to be valid.
@@ -742,6 +755,7 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
     RTC_DCHECK(decoder_info);
     if (decoder_info->SampleRateHz() != fs_hz_ ||
         channels != algorithm_buffer_->Channels()) {
+      // 更新采样率和声道数
       SetSampleRateAndChannels(decoder_info->SampleRateHz(), channels);
     }
     if (nack_enabled_) {
@@ -751,6 +765,8 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
     }
   }
 
+  /// 更新net_eq_controller
+  // 原始包类型，RED 以后的类型
   const DecoderDatabase::DecoderInfo* dec_info =
       decoder_database_->GetDecoderInfo(main_payload_type);
   RTC_DCHECK(dec_info);  // Already checked that the payload type is known.
@@ -769,7 +785,6 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
   info.buffer_flush = buffer_flush_occured;
 
   const bool should_update_stats = !new_codec_;
-  // 更新net_eq_controller
   auto relative_delay =
       controller_->PacketArrived(fs_hz_, should_update_stats, info);
   if (relative_delay) {
@@ -2091,6 +2106,7 @@ void NetEqImpl::UpdatePlcComponents(int fs_hz, size_t channels) {
   merge_.reset(new Merge(fs_hz, channels, expand_.get(), sync_buffer_.get()));
 }
 
+// 更新采样率和声道数，需要更新所有音频处理组件和内部状态
 void NetEqImpl::SetSampleRateAndChannels(int fs_hz, size_t channels) {
   RTC_LOG(LS_VERBOSE) << "SetSampleRateAndChannels " << fs_hz << " "
                       << channels;
@@ -2108,6 +2124,7 @@ void NetEqImpl::SetSampleRateAndChannels(int fs_hz, size_t channels) {
 
   last_mode_ = Mode::kNormal;
 
+  // 更新所有音频处理组件
   ComfortNoiseDecoder* cng_decoder = decoder_database_->GetActiveCngDecoder();
   if (cng_decoder)
     cng_decoder->Reset();

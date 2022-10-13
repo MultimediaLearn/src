@@ -157,6 +157,7 @@ bool RedPayloadSplitter::SplitRed(PacketList* packet_list) {
   return ret;
 }
 
+// 保留 DTMF、CNG 或者和第一个正常报类型一样的包；其他都去掉
 void RedPayloadSplitter::CheckRedPayloads(
     PacketList* packet_list,
     const DecoderDatabase& decoder_database) {
