@@ -99,6 +99,7 @@ void DelayManager::Update(int arrival_delay_ms, bool reordered) {
   target_level_ms_ =
       underrun_optimizer_.GetOptimalDelayMs().value_or(kStartDelayMs);
   if (reorder_optimizer_) {
+    // 有乱序优化用乱序优化，没有就用普通 underrun
     reorder_optimizer_->Update(arrival_delay_ms, reordered, target_level_ms_);
     target_level_ms_ = std::max(
         target_level_ms_, reorder_optimizer_->GetOptimalDelayMs().value_or(0));
@@ -106,6 +107,8 @@ void DelayManager::Update(int arrival_delay_ms, bool reordered) {
   unlimited_target_level_ms_ = target_level_ms_;
 
   // 其他启发式限制约束
+  // - [effective_minimum_delay_ms_, maximum_delay_ms_] 之间
+  // - 不超过最大包数对应时长的 75%
   target_level_ms_ = std::max(target_level_ms_, effective_minimum_delay_ms_);
   if (maximum_delay_ms_ > 0) {
     target_level_ms_ = std::min(target_level_ms_, maximum_delay_ms_);

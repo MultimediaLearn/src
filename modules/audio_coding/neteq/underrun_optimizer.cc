@@ -34,10 +34,10 @@ UnderrunOptimizer::UnderrunOptimizer(const TickTimer* tick_timer,
 void UnderrunOptimizer::Update(int relative_delay_ms) {
   absl::optional<int> histogram_update;
   if (resample_interval_ms_) {
+  // 输入delay 重采样，取一段时间较大值
     if (!resample_stopwatch_) {
       resample_stopwatch_ = tick_timer_->GetNewStopwatch();
     }
-    // 输入delay 重采样，取一段时间较大值
     if (static_cast<int>(resample_stopwatch_->ElapsedMs()) >
         *resample_interval_ms_) {
       histogram_update = max_delay_in_interval_ms_;
@@ -58,6 +58,7 @@ void UnderrunOptimizer::Update(int relative_delay_ms) {
     // Maximum delay to register is 2000 ms.
     histogram_.Add(index);
   }
+  // 满足不溢出概率的最小捅索引
   int bucket_index = histogram_.Quantile(histogram_quantile_);
   optimal_delay_ms_ = (1 + bucket_index) * kBucketSizeMs;
 }

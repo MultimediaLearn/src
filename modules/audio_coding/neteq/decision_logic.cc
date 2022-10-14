@@ -264,7 +264,7 @@ absl::optional<int> DecisionLogic::PacketArrived(
     delay_manager_->SetPacketAudioLength(packet_length_samples_ * 1000 / fs_hz);
   }
 
-  /// 包到达时延估计
+  /// 包到达时延估计，插入包时间戳和当前时间戳
   int64_t time_now_ms = tick_timer_->ticks() * tick_timer_->ms_per_tick();
   packet_arrival_history_.Insert(info.main_timestamp, time_now_ms);
   if (packet_arrival_history_.size() < 2) {

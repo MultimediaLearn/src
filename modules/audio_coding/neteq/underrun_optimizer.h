@@ -39,7 +39,7 @@ class UnderrunOptimizer {
  private:
   const TickTimer* tick_timer_;
   Histogram histogram_;
-  const int histogram_quantile_;  // In Q30.
+  const int histogram_quantile_;  // In Q30. 不溢出概率
   const absl::optional<int> resample_interval_ms_;
   std::unique_ptr<TickTimer::Stopwatch> resample_stopwatch_;
   int max_delay_in_interval_ms_ = 0;

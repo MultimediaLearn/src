@@ -50,12 +50,14 @@ class PacketArrivalHistory {
   size_t size() const { return history_.size(); }
 
  private:
+  // 近似包传输时间记录
   struct PacketArrival {
     PacketArrival(int64_t rtp_timestamp_ms, int64_t arrival_time_ms)
         : rtp_timestamp_ms(rtp_timestamp_ms),
           arrival_time_ms(arrival_time_ms) {}
     int64_t rtp_timestamp_ms;
     int64_t arrival_time_ms;
+    // 比较包的传输时间
     bool operator<=(const PacketArrival& other) const {
       return arrival_time_ms - rtp_timestamp_ms <=
              other.arrival_time_ms - other.rtp_timestamp_ms;

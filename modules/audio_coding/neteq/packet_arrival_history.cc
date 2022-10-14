@@ -29,7 +29,7 @@ void PacketArrivalHistory::Insert(uint32_t rtp_timestamp,
       unwrapped_rtp_timestamp > *newest_rtp_timestamp_) {
     newest_rtp_timestamp_ = unwrapped_rtp_timestamp;
   }
-  // 采集时间和到达时间
+  // 采集时间和到达时间入队，并更新内部记录
   history_.emplace_back(unwrapped_rtp_timestamp / sample_rate_khz_,
                         arrival_time_ms);
   MaybeUpdateCachedArrivals(history_.back());
@@ -52,6 +52,7 @@ void PacketArrivalHistory::Insert(uint32_t rtp_timestamp,
   }
 }
 
+// 更新最大延迟时间包和最小延迟时间包
 void PacketArrivalHistory::MaybeUpdateCachedArrivals(
     const PacketArrival& packet_arrival) {
   if (!min_packet_arrival_ || packet_arrival <= *min_packet_arrival_) {

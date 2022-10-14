@@ -785,6 +785,7 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
   info.buffer_flush = buffer_flush_occured;
 
   const bool should_update_stats = !new_codec_;
+  // 更新 controller_
   auto relative_delay =
       controller_->PacketArrived(fs_hz_, should_update_stats, info);
   if (relative_delay) {

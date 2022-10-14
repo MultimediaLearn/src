@@ -239,7 +239,7 @@ int PacketBuffer::InsertPacketList(
       }
       *current_cng_rtp_payload_type = packet.payload_type;
     } else if (!decoder_database.IsDtmf(packet.payload_type)) {
-    // 不是dtmf，一定是语音
+    // 不是cng，不是dtmf，一定是语音
       // This must be speech.
       if ((*current_rtp_payload_type &&
            **current_rtp_payload_type != packet.payload_type) ||

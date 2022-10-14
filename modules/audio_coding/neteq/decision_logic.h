@@ -179,7 +179,7 @@ class DecisionLogic : public NetEqController {
   Config config_;
   std::unique_ptr<DelayManager> delay_manager_;
   std::unique_ptr<BufferLevelFilter> buffer_level_filter_;
-  PacketArrivalHistory packet_arrival_history_;
+  PacketArrivalHistory packet_arrival_history_;   // 统计到达时间，计算延迟和乱序
   const TickTimer* tick_timer_;
   int sample_rate_khz_;
   size_t output_size_samples_;
