@@ -187,7 +187,7 @@ class DecisionLogic : public NetEqController {
                                   // other event (e.g., DTMF).
   size_t noise_fast_forward_ = 0;
   size_t packet_length_samples_ = 0;
-  int sample_memory_ = 0;
+  int sample_memory_ = 0;     // expand 后记录剩余数据大小?
   bool prev_time_scale_ = false;
   bool disallow_time_stretching_;
   std::unique_ptr<TickTimer::Countdown> timescale_countdown_;

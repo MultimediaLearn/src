@@ -305,6 +305,11 @@ void DecisionLogic::FilterBufferLevel(size_t buffer_size_samples) {
 NetEq::Operation DecisionLogic::CngOperation(
     NetEqController::NetEqStatus status) {
   // Signed difference between target and available timestamp.
+  // [status.target + noise_samples, + target] -> range
+  // case 1: next in range, (next - range.begin) - target < 0
+  // case 2: next > range.end, (next - range.begin) - target = excess > 0
+  //      2.1  excess > target / 2 : -> noise_samples += excess
+  //      2.2  excess < target / 2 : -> noise_samples 不变
   int32_t timestamp_diff = static_cast<int32_t>(
       static_cast<uint32_t>(status.generated_noise_samples +
                             status.target_timestamp) -
@@ -324,6 +329,7 @@ NetEq::Operation DecisionLogic::CngOperation(
   }
 
   if (timestamp_diff < 0 && status.last_mode == NetEq::Mode::kRfc3389Cng) {
+    // noise packet end time < next_packet
     // Not time to play this packet yet. Wait another round before using this
     // packet. Keep on playing CNG from previous CNG parameters.
     return NetEq::Operation::kRfc3389CngNoPacket;

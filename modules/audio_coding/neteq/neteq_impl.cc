@@ -494,6 +494,7 @@ NetEq::Operation NetEqImpl::last_operation_for_test() const {
 
 // Methods below this line are private.
 
+// 插入一个rtp 包
 int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
                                     rtc::ArrayView<const uint8_t> payload) {
   if (payload.empty()) {
@@ -794,7 +795,7 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
   return 0;
 }
 
-// 对外接口，输出解码后样点数据
+// 输出解码后样点数据
 int NetEqImpl::GetAudioInternal(AudioFrame* audio_frame,
                                 bool* muted,
                                 absl::optional<Operation> action_override) {
@@ -814,6 +815,7 @@ int NetEqImpl::GetAudioInternal(AudioFrame* audio_frame,
           lifetime_stats.silent_concealed_samples,
       fs_hz_);
 
+  // 静音状态处理，或者还没有收到包
   // Check for muted state.
   if (enable_muted_state_ && expand_->Muted() && packet_buffer_->Empty()) {
     RTC_DCHECK_EQ(last_mode_, Mode::kExpand);
@@ -839,6 +841,7 @@ int NetEqImpl::GetAudioInternal(AudioFrame* audio_frame,
     return 0;
   }
 
+  // 非静音状态，进行音频处理决策
   int return_value = GetDecision(&operation, &packet_list, &dtmf_event,
                                  &play_dtmf, action_override);
   if (return_value != 0) {
@@ -1118,6 +1121,7 @@ int NetEqImpl::GetDecision(Operation* operation,
       last_mode_ == Mode::kPreemptiveExpandSuccess ||
       last_mode_ == Mode::kPreemptiveExpandLowEnergy) {
     // Subtract (samples_left + output_size_samples_) from sampleMemory.
+    // ？ 这些操作执行时，有调用 set
     controller_->AddSampleMemory(
         -(samples_left + rtc::dchecked_cast<int>(output_size_samples_)));
   }
